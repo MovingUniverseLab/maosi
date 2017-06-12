@@ -7,16 +7,16 @@ import pylab as py
 import pyfits
 import time
 
-Nstars = 10000
-stars_x = np.random.rand(Nstars) * 6000 / 0.1
-stars_y = np.random.rand(Nstars) * 6000 / 0.1
+Nstars = 100
+stars_x = np.random.rand(Nstars) * 6000 * 0.1 *-1
+stars_y = np.random.rand(Nstars) * 6000 * 0.1
 stars_f_tmp = np.random.rand(Nstars)
 stars_f = (stars_f_tmp**-0.5) - 1.0
 stars_f *= 1e6 / stars_f_tmp.max()
 
-def prepare_test_imaka():
-    psf_file = '/Users/jlu/work/imaka/sims/psfs/'
-    psf_file += 'PSFs_Imaka88-offner-10x10field_5GS8rad-Nyquist.fits'
+def prepare_test_imaka(rootdir='/Users/jlu/work/imaka/sims/psfs/'):
+
+    psf_file = rootdir + 'PSFs_Imaka88-offner-10x10field_5GS8rad-Nyquist.fits'
 
     print 'Loading PSF grid from: '
     print psf_file

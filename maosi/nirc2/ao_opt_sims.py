@@ -1,5 +1,5 @@
 import numpy as np
-import pyfits
+from astropy.io import fits as pyfits
 from astropy.table import Table
 from maosi.scene import Scene
 from maosi.instrument import Instrument
@@ -55,7 +55,7 @@ class NIRC2(Instrument):
         
         super(self.__class__, self).__init__(array_size, readnoise, dark_current, gain)
 
-        self.scale = 0.01   # mas/pix
+        self.scale = 0.009952   # mas/pix
         self.tint = 2.8
         self.coadds = 10
         self.fowler = 8
@@ -86,7 +86,7 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
         wave_shape = 1
 
         if wave_shape != len(wave_array):
-            print 'Problem with PSF shape and wave_array shape'
+            print( 'Problem with PSF shape and wave_array shape')
 
 
         # Reshape the array to get the X and Y positions
@@ -136,48 +136,49 @@ def read_label_dat(label_file='/g/lu/data/gc/source_list/label.dat'):
 
     return gcstars
 
-def read_nirc2_psf_grid(dir='/Users/jlu/work/ao/ao_optimization/test_sim_img/'):
-    psf_file = dir + 'psf_stack.fits'
+def read_nirc2_psf_grid(psf_file, psf_grid_pos_file):
+    print('Loading PSF grid from: ')
+    print( psf_file)
 
-    print 'Loading PSF grid from: '
-    print psf_file
+    # Read in the PSF grid (single array of PSFs)
     psfs = pyfits.getdata(psf_file)
 
-    # Repair them because there shouldn't be pixels with flux < 0.
-    # To preserve the noise properties, just add a zeropoint offset.
-    # Get the minimum pixel value across all the PSFs so they stay
-    # properly normalized.
-    psf_min = psfs.min()
+    # Read in the grid positions.
+    psf_grid_pos = pyfits.getdata(psf_grid_pos_file)
 
     # Positify and normalize and the PSFs.
     for ii in range(psfs.shape[0]):
+        # Repair them because there shouldn't be pixels with flux < 0.
+        # To preserve the noise properties, just clip the values to be zero.
         psfs[ii][psfs[ii] < 0] = 0
-        # if psf_min < 0:
-        #     psfs[ii] -= psf_min
             
         psfs[ii] /= psfs[ii].sum()
 
-    return psfs
+    return psfs, psf_grid_pos
 
-def test_nirc2_img(psf_grid_raw, dir='/Users/jlu/work/ao/ao_optimization/test_sim_img/'):
+def test_nirc2_img(psf_grid_raw, psf_grid_pos, outname='tmp.fits'):
     time_start = time.time()
     
     nirc2 = NIRC2()
+    nirc2.coadds = 10 * 10   # 2.8 sec * 10 coadds * 10 images
+
     
-    print 'Reading GC Label.dat: {0} sec'.format(time.time() - time_start)
+    print( 'Reading GC Label.dat: {0} sec'.format(time.time() - time_start))
     stars = GCstars()
+
+    psfgrid = PSF_grid_NIRC2_Kp(psf_grid_raw, psf_grid_pos)
+
+    print( 'Making Image: {0} sec'.format(time.time() - time_start))
+    wave_index = 0
+    background = 3.0 # elect_nicerons /sec
+    obs = Observation(nirc2, stars, psfgrid,
+                      wave_index, background,
+                      origin=np.array([512, 512]))
     
-    if psf_grid_raw is None:
-        psf_grid_raw = read_nirc2_psf_grid(dir=dir)
-
-    grid_pos = pyfits.getdata(dir + 'grid.fits')
-
-    psfgrid = PSF_grid_NIRC2_Kp(psf_grid_raw, grid_pos)
-
-    print 'Making Image: {0} sec'.format(time.time() - time_start)
-    obs = Observation(nirc2, stars, psfgrid, 0, 3.0, origin=np.array([512, 512]))
-    print 'Saving Image: {0} sec'.format(time.time() - time_start)
-    obs.save_to_fits('tmp.fits', clobber=True)
+    print( 'Saving Image: {0} sec'.format(time.time() - time_start))
+    obs.save_to_fits(outname, clobber=True)
+    
+    return
 
 
     

@@ -1,10 +1,10 @@
 import numpy as np
 import pylab as py
-import pyfits
+from astropy.io import fits as pyfits
 
 class PSF_grid(object):
     """
-    Container for a grid of 'imaka PSFs. This function hosts
+    Container for a grid of PSFs. This function hosts
     all of the interpolation routines such that you can "get_psf"
     anywhere in the focal plane.
     """
@@ -25,7 +25,7 @@ class PSF_grid(object):
         wave_shape = psf.shape[0]
 
         if wave_shape != len(wave_array):
-            print 'Problem with PSF shape and wave_array shape'
+            print( 'Problem with PSF shape and wave_array shape')
             
         # Reshape the array to get the X and Y positions
         psf = psf.reshape((wave_shape, grid_shape[0], grid_shape[1],
@@ -53,8 +53,8 @@ class PSF_grid(object):
 
         
         self.psf = psf
-        self.psf_x = x_pos
-        self.psf_y = y_pos
+        self.psf_x = x_pos  # 1D array
+        self.psf_y = y_pos  # 1D array
         self.psf_wave = wave_array
         self.wave_shape = wave_shape
         self.grid_shape = grid_shape
@@ -73,6 +73,10 @@ class PSF_grid(object):
 
         
     def get_local_psf(self, x, y, wave_idx):
+        """
+        Return an interpolated PSF at the requested [x, y] location.
+        Interpolation method is fast bilinear interpolation.
+        """
         psf_x = self.psf_x
         psf_y = self.psf_y
 
@@ -84,8 +88,8 @@ class PSF_grid(object):
             raise ValueError('y is outside the valid PSF grid region')
         
         # Find the nearest PSF
-        xidx_lo = np.where(psf_x < x)[0][-1]
-        yidx_lo = np.where(psf_y < y)[0][-1]
+        xidx_lo = np.where(psf_x <= x)[0][-1]
+        yidx_lo = np.where(psf_y <= y)[0][-1]
         xidx_hi = xidx_lo + 1
         yidx_hi = yidx_lo + 1
 
