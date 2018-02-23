@@ -109,9 +109,9 @@ class Observation(object):
         # Add Poisson noise from dark, sky, background, stars.
         img_noise = np.random.poisson(img, img.shape)
         
-
-        # Add readnoise
-        img_noise += np.random.normal(loc=0, scale=readnoise, size=img.shape)
+        # Add readnoise. We get readnoise for every coadd. 
+        readnoise_all_reads = np.random.normal(loc=0, scale=readnoise, size=img.shape.append(instrument.coadds))
+        img_noise += readnoise_all_reads.sum(axis=2)
 
         # Save the image to the object
         self.img = img + img_noise
@@ -124,6 +124,11 @@ class Observation(object):
                         names=("xpix", "ypix", "counts"),
                         meta={'name':'stars table'})
         self.stars = stars
+
+        # TO DO: Add support for saturation and creating a *.max file with the
+        # saturation limit of this image included.
+        # sat_in_DN = instrument.saturation * instrument.coadds / instrument.gain
+        # SAVE TO *.max FILE. inside save_to_fits().
         
         return
 

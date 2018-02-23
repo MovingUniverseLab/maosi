@@ -56,7 +56,6 @@ def test_imaka(psf_grid_raw):
 
     return obs
 
-
     
 
     
