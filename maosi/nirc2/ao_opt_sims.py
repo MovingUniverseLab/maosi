@@ -1,14 +1,15 @@
 import numpy as np
-import pyfits
+from astropy.io import fits as pyfits
 from astropy.table import Table
 from maosi.scene import Scene
 from maosi.instrument import Instrument
 from maosi.observation import Observation
 from maosi.psf import PSF_grid
 import time
+import pdb
 
 class GCstars(Scene):
-    def __init__(self, label_file='/g/lu/data/gc/source_list/label.dat'):
+    def __init__(self, label_file='/Users/jlu/data/gc/source_list/label.dat'):
         self.label_file = label_file
         
         self.stars = read_label_dat(label_file)
@@ -55,7 +56,7 @@ class NIRC2(Instrument):
         
         super(self.__class__, self).__init__(array_size, readnoise, dark_current, gain)
 
-        self.scale = 0.00952   # mas/pix
+        self.scale = 0.009954   # mas/pix
         self.tint = 2.8
         self.coadds = 10
         self.fowler = 8
@@ -75,43 +76,36 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
         of PSFs. These are stored and you can interpolate between them
         if necessary.
         """
-        psf_scale = [0.010]  # arcseconds per pixel
+        psf_scale = [0.009954]  # arcseconds per pixel
 
-        grid_shape_tmp = np.sqrt(psf.shape[0])
-        grid_shape = np.array((grid_shape_tmp, grid_shape_tmp))
-        self.grid_shape = grid_shape
-        
         # Fix wave_array to be a float
         wave_array=[2120]        
         wave_shape = 1
 
         if wave_shape != len(wave_array):
-            print 'Problem with PSF shape and wave_array shape'
-
+            print( 'Problem with PSF shape and wave_array shape' )
 
         # Reshape the array to get the X and Y positions
-        psf = psf.reshape((wave_shape, grid_shape[0], grid_shape[1],
+        n_psfs = psf.shape[0]
+        psf = psf.reshape((wave_shape, psf.shape[0], 
                            psf.shape[1], psf.shape[2]))
-        #psf = np.swapaxes(psf, 1, 2)
 
-        grid = grid_points.reshape((wave_shape, grid_shape[0], grid_shape[1],
-                                    grid_points.shape[1]))
-        #grid = np.swapaxes(grid, 1, 2)
-        
+        grid = grid_points.reshape((wave_shape, grid_points.shape[0], grid_points.shape[1]))
 
         # Calculate the positions of all these PSFs. We assume that the
         # outermost PSFs are at the corners such that all observed stars
         # are internal to these corners. These are 1D arrays.
-        x_pos = grid[0, 0, :, 0]
-        y_pos = grid[0, :, 0, 1]
+        x_pos = grid[0, :, 0]
+        y_pos = grid[0, :, 1]
 
         self.psf = psf
-        self.psf_x = x_pos
-        self.psf_y = y_pos
+        self.psf_x = x_pos   # 2D array
+        self.psf_y = y_pos   # 2D array
         self.psf_wave = wave_array
         self.wave_shape = wave_shape
-        self.grid_shape = grid_shape
         self.psf_scale = psf_scale
+        
+        self.interpolator = [None for ii in self.psf_wave]
 
         return
         
@@ -137,8 +131,8 @@ def read_label_dat(label_file='/g/lu/data/gc/source_list/label.dat'):
     return gcstars
 
 def read_nirc2_psf_grid(psf_file, psf_grid_pos_file):
-    print 'Loading PSF grid from: '
-    print psf_file
+    print( 'Loading PSF grid from: ' )
+    print( psf_file )
 
     # Read in the PSF grid (single array of PSFs)
     psfs = pyfits.getdata(psf_file)
@@ -161,19 +155,19 @@ def test_nirc2_img(psf_grid_raw, psf_grid_pos, outname='tmp.fits'):
     
     nirc2 = NIRC2()
     
-    print 'Reading GC Label.dat: {0} sec'.format(time.time() - time_start)
+    print( 'Reading GC Label.dat: {0} sec'.format(time.time() - time_start) )
     stars = GCstars()
 
     psfgrid = PSF_grid_NIRC2_Kp(psf_grid_raw, psf_grid_pos)
 
-    print 'Making Image: {0} sec'.format(time.time() - time_start)
+    print( 'Making Image: {0} sec'.format(time.time() - time_start) )
     wave_index = 0
     background = 3.0 # elect_nicerons /sec
     obs = Observation(nirc2, stars, psfgrid,
                       wave_index, background,
-                      origin=np.array([512, 512]))
+                      origin=np.array([631, 603]))
     
-    print 'Saving Image: {0} sec'.format(time.time() - time_start)
+    print( 'Saving Image: {0} sec'.format(time.time() - time_start) )
     obs.save_to_fits(outname, clobber=True)
     
     return

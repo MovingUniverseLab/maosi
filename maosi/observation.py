@@ -1,14 +1,15 @@
 import numpy as np
 import pylab as py
-import pyfits
+from astropy.io import fits as pyfits
 from scipy.interpolate import RectBivariateSpline
 import math
 import pdb
 from astropy.table import Table
 
+
 class Observation(object):
     def __init__(self, instrument, scene, psf_grid, wave, background,
-                 origin=[0,0], PA=0):
+                 origin=[0,0], PA=0, use_nn_psf=False):
         """
         background - Background in electrons per second
         origin - a 2D array giving the pixel coordinates that correspond
@@ -35,34 +36,36 @@ class Observation(object):
         # i and j are the coordinates into the PSF array. Make it 0 at the center.
         # i goes along the x direction (2nd index in image array)
         # j goes along the y direction (1st index in image array)
-        psf_j = np.arange(psf_grid.psf.shape[3]) - (psf_grid.psf.shape[3] / 2)
-        psf_i = np.arange(psf_grid.psf.shape[4]) - (psf_grid.psf.shape[4] / 2)
+        psf_j = np.arange(psf_grid.psf.shape[2]) - (psf_grid.psf.shape[2] / 2)
+        psf_i = np.arange(psf_grid.psf.shape[3]) - (psf_grid.psf.shape[3] / 2)
 
         psf_j_scaled = psf_j * (psf_grid.psf_scale[wave] / instrument.scale)
         psf_i_scaled = psf_i * (psf_grid.psf_scale[wave] / instrument.scale)
 
         x, y = convert_scene_to_pixels(scene, instrument, origin, PA)
-    
-
+        
         keep_idx = []
 
         # Add the point sources
-        print 'Observation: Adding stars one by one.'
+        print( 'Observation: Adding stars one by one.' )
         for ii in range(len(x)):
             if ii % 1000 == 0:
-                print ii
+                print( ii )
             # Fetch the appropriate interpolated PSF and scale by flux.
             # This is only good to a single pixel.
             try:
-                psf = psf_grid.get_local_psf(x[ii], y[ii], wave)
-            except ValueError, err:
+                psf = psf_grid.get_local_psf(x[ii], y[ii], wave, nearest_neighbor=use_nn_psf)
+            except ValueError:
                 # Skip this star.
                 continue
+
+            # Dumb hard-coded decision.
+            if psf.min() < 0:
+                idx = np.where(psf < 0)
+                psf[idx] = 1e-5
             
             psf *= scene.flux[ii] * flux_to_counts
 
-            if psf.min() < 0:
-                pdb.set_trace()
 
             # Project this PSF onto the detector at this position.
             # This includes sub-pixel shifts and scale changes.
@@ -101,7 +104,7 @@ class Observation(object):
 
             keep_idx.append(ii)
 
-        print 'Observation: Finished adding stars.'
+        print( 'Observation: Finished adding stars.' )
         
         #####
         # ADD NOISE: Up to this point, the image is complete; but noise free.
@@ -111,7 +114,7 @@ class Observation(object):
         
 
         # Add readnoise
-        img_noise += np.random.normal(loc=0, scale=readnoise, size=img.shape)
+        img_noise += (np.round(np.random.normal(loc=0, scale=readnoise, size=img.shape))).astype('int')
 
         # Save the image to the object
         self.img = img + img_noise
@@ -127,8 +130,8 @@ class Observation(object):
         
         return
 
-    def save_to_fits(self, fitsfile, clobber=False):
-        pyfits.writeto(fitsfile, self.img, clobber=clobber)
+    def save_to_fits(self, fitsfile, header=None, clobber=False):
+        pyfits.writeto(fitsfile, self.img, header=header, clobber=clobber)
 
         self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'), format='fits', overwrite=clobber)
 
