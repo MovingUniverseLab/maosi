@@ -16,7 +16,7 @@ class Instrument(object):
         # Here are a bunch of default values setup.
 
         # Integration time in seconds
-        self.itime = 1.0
+        self.tint = 1.0
 
         # Coadds
         self.coadds = 1
