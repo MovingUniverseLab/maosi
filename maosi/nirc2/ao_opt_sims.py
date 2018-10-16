@@ -9,7 +9,7 @@ import time
 import pdb
 
 class GCstars(Scene):
-    def __init__(self, label_file='/Users/jlu/data/gc/source_list/label.dat'):
+    def __init__(self, label_file='/g/lu/data/gc/source_list/label.dat', instr=None):
         self.label_file = label_file
         
         self.stars = read_label_dat(label_file)
@@ -18,17 +18,8 @@ class GCstars(Scene):
         # isn't strictly observable, but it will do for now.
         x_now = self.stars['x']
         y_now = self.stars['y']
-
-        # Built in conversion that a 9th magnitude star should give roughly
-        # 24000 DN on a NIRC2 central pixel in the K-band in a 2.8 sec exposure.
-        # The zeropoint calculated is integrated (has an aperture correction to
-        # go from the central pixel value based on Gunther's PSF grid...
-        # it is approximate).
-        aper_corr = 387.605 
-        ZP_flux = (24000.0 * 4 / 2.8) * aper_corr
-        ZP_mag = 9.0
             
-        f_now = 10**((self.stars['Kmag'] - ZP_mag) / -2.5) * ZP_flux
+        f_now = 10**((self.stars['Kmag'] - instr.ZP_mag) / -2.5) * instr.ZP_flux
         mag_now = self.stars['Kmag']
         name_now = self.stars['name']
 
@@ -52,7 +43,7 @@ class GCstars(Scene):
 
 
 class Grid(Scene):
-    def __init__(self, n_grid, mag, noise=False):
+    def __init__(self, n_grid, mag, noise=False, instr=None):
         
         # Prepare a grid of positions
         img_size = 10 # Approximate size of the image (")
@@ -69,12 +60,7 @@ class Grid(Scene):
         x_now = Table.Column(data=grid.flatten()+x_noise, name='x')
         y_now = Table.Column(data=grid.flatten('F')+y_noise, name='x')
 
-        # Use the same magnitude calibration as in GCstars
-        aper_corr = 387.605
-        ZP_flux = (24000.0 * 4 / 2.8) * aper_corr
-        ZP_mag = 9.0
-
-        f_now = Table.Column(data=[10 ** ((mag - ZP_mag) / -2.5) * ZP_flux] * (n_grid ** 2), name='Kmag')
+        f_now = Table.Column(data=[10 ** ((mag - instr.ZP_mag) / -2.5) * instr.ZP_flux] * (n_grid ** 2), name='Kmag')
         mag_now = Table.Column(data=[mag] * (n_grid ** 2), name='Kmag')
         name_now = Table.Column(data=['dummy_star'] * (n_grid ** 2), name='name')
 
@@ -96,6 +82,15 @@ class NIRC2(Instrument):
         self.tint = 2.8
         self.coadds = 10
         self.fowler = 8
+
+        # Built in conversion that a 9th magnitude star should give roughly
+        # 24000 DN on a NIRC2 central pixel in the K-band in a 2.8 sec exposure.
+        # The zeropoint calculated is integrated (has an aperture correction to
+        # go from the central pixel value based on Gunther's PSF grid...
+        # it is approximate).
+        self.aper_corr = 387.605 
+        self.ZP_flux = (24000.0 * 4 / 2.8) * self.aper_corr
+        self.ZP_mag = 9.0
 
         return
 
