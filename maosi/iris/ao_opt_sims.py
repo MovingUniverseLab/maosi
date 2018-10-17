@@ -69,32 +69,32 @@ class Grid(Scene):
 
         return
 
-class NIRC2(Instrument):
+
+class IRIS(Instrument):
     def __init__(self):
-        array_size = np.array((1024, 1024))
-        readnoise = 60.0    # electrons
-        dark_current = 0.1  # electrons / sec / pix
-        gain = 4.0          # electrons per DN
-        
+        array_size = np.array((4096, 4096))
+        readnoise = 5  # electrons
+        dark_current = 0.002  # electrons / sec / pix
+        gain = 3.04  # electrons per DN
+
         super(self.__class__, self).__init__(array_size, readnoise, dark_current, gain)
 
-        self.scale = 0.009954   # "/pix
-        self.tint = 2.8
-        self.coadds = 10
-        self.fowler = 8
-        self.name = 'NIRC2'
+        self.scale = 0.004  # "/pix
+        self.tint = 30
+        self.coadds = 1##########################
+        self.fowler = 1####################3
+        self.name = 'IRIS'
 
         # Built in conversion that a 9th magnitude star should give roughly
         # 24000 DN on a NIRC2 central pixel in the K-band in a 2.8 sec exposure.
         # The zeropoint calculated is integrated (has an aperture correction to
         # go from the central pixel value based on Gunther's PSF grid...
         # it is approximate).
-        self.aper_corr = 387.605 
+        self.aper_corr = 387.605###################################3
         self.ZP_flux = (24000.0 * 4 / 2.8) * self.aper_corr
         self.ZP_mag = 9.0
 
         return
-
 
 class PSF_grid_NIRC2_Kp(PSF_grid):
     """
