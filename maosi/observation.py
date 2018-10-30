@@ -105,7 +105,7 @@ class Observation(object):
 
             keep_idx.append(ii)
 
-        print( 'Observation: Finished adding stars.' )
+        print( 'Observation: Finished adding stars.')
         
         #####
         # ADD NOISE: Up to this point, the image is complete; but noise free.
@@ -114,7 +114,9 @@ class Observation(object):
         img_noise = np.random.poisson(img, img.shape)
         
         # Add readnoise. We get readnoise for every coadd. 
-        readnoise_all_reads = np.random.normal(loc=0, scale=readnoise, size=img.shape.append(instrument.coadds))
+        readnoise_all_reads = np.random.normal(loc=0, scale=readnoise, 
+                                               size=np.append(img.shape, instrument.coadds))
+        readnoise_all_reads = np.rint(readnoise_all_reads).astype('int')
         img_noise += readnoise_all_reads.sum(axis=2)
 
         # Save the image to the object

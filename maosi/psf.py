@@ -105,29 +105,61 @@ class PSF_grid(object):
         
         # Find the PSF
         if method == 'neighbor':
-            xidx = np.argmin(abs(psf_x - x))
-            yidx = np.argmin(abs(psf_y - y))
-
-            psf_loc = self.psf[wave_idx, yidx, xidx]
+            pidx = np.argmin(np.hypot(psf_x - x, psf_y - y))
+            
+            psf_loc = self.psf[wave_idx, pidx]
 
         elif method == 'bilinear':
-            xidx_lo = np.where(psf_x <= x)[0][-1]
-            yidx_lo = np.where(psf_y <= y)[0][-1]
-            xidx_hi = xidx_lo + 1
-            yidx_hi = yidx_lo + 1
+            
+            # Distance of all PSFs to the star
+            dr = np.hypot(psf_x - x, psf_y - y)
 
-            psf_xlo_ylo = self.psf[wave_idx, yidx_lo, xidx_lo]
-            psf_xhi_ylo = self.psf[wave_idx, yidx_lo, xidx_hi]
-            psf_xlo_yhi = self.psf[wave_idx, yidx_hi, xidx_lo]
-            psf_xhi_yhi = self.psf[wave_idx, yidx_hi, xidx_hi]
+            # Find PSFs in each quadrant
+            xlo_ylo = np.where((psf_x <= x) & (psf_y <= y))[0]
+            xlo_yhi = np.where((psf_x <= x) & (psf_y > y))[0]
+            xhi_ylo = np.where((psf_x > x) & (psf_y <= y))[0]
+            xhi_yhi = np.where((psf_x > x) & (psf_y > y))[0]
 
-            dx = 1. * (x - psf_x[xidx_lo]) / (psf_x[xidx_hi] - psf_x[xidx_lo])
-            dy = 1. * (y - psf_y[yidx_lo]) / (psf_y[yidx_hi] - psf_y[yidx_lo])
+            # Find the closest PSF in each quadrant
+            idx_xlo_ylo = np.argmin(dr[xlo_ylo])
+            idx_xlo_yhi = np.argmin(dr[xlo_yhi])
+            idx_xhi_ylo = np.argmin(dr[xhi_ylo])
+            idx_xhi_yhi = np.argmin(dr[xhi_yhi])
 
-            psf_loc = ((1 - dx) * (1 - dy) * psf_xlo_ylo +
-                           (1 - dx) * (  dy  ) * psf_xlo_yhi +
-                           (  dx  ) * (1 - dy) * psf_xhi_ylo +
-                           (  dx  ) * (  dy  ) * psf_xhi_yhi)
+            # Select the image of the closest PSF in each quadrant
+            psf_xlo_ylo = self.psf[wave_idx, xlo_ylo[idx_xlo_ylo]]
+            psf_xlo_yhi = self.psf[wave_idx, idx_xlo_yhi]
+            psf_xhi_ylo = self.psf[wave_idx, idx_xhi_ylo]
+            psf_xhi_yhi = self.psf[wave_idx, idx_xhi_yhi]
+
+            # Select the x distance of the closest PSF in each quadrant
+            dx_xlo_ylo = x - psf_x[xlo_ylo[idx_xlo_ylo]]
+            dx_xlo_yhi = x - psf_x[xlo_yhi[idx_xlo_yhi]]
+            dx_xhi_ylo = psf_x[xhi_ylo[idx_xhi_ylo]] - x
+            dx_xhi_yhi = psf_x[xhi_yhi[idx_xhi_yhi]] - x
+
+            # Select the y distance of the closest PSF in each quadrant
+            dy_xlo_ylo = y - psf_y[xlo_ylo[idx_xlo_ylo]]
+            dy_xlo_yhi = psf_y[xlo_yhi[idx_xlo_yhi]] - y
+            dy_xhi_ylo = y - psf_y[xhi_ylo[idx_xhi_ylo]]
+            dy_xhi_yhi = psf_y[xhi_yhi[idx_xhi_yhi]] - y
+            
+            # Calculate the "sides" of the four PSFs asterism
+            dx_bottom = psf_x[xhi_ylo[idx_xhi_ylo]] - psf_x[xlo_ylo[idx_xlo_ylo]]
+            dx_top = psf_x[xhi_yhi[idx_xhi_yhi]] - psf_x[xlo_yhi[idx_xlo_yhi]]
+            dy_left = psf_y[xlo_yhi[idx_xlo_yhi]] - psf_y[xlo_ylo[idx_xlo_ylo]]
+            dy_right = psf_y[xhi_yhi[idx_xhi_yhi]] - psf_y[xhi_ylo[idx_xhi_ylo]]
+
+            # Calculate the weight of the four closest PSFs
+            weight_xlo_ylo = (1 - (dx_xlo_ylo / dx_bottom)) * (1 - (dy_xlo_ylo / dy_left))
+            weight_xlo_yhi = (1 - (dx_xlo_yhi / dx_top)) * (1 - (dy_xlo_yhi / dy_left))
+            weight_xhi_ylo = (1 - (dx_xhi_ylo / dx_bottom)) * (1 - (dy_xhi_ylo / dy_right))
+            weight_xhi_yhi = (1 - (dx_xhi_yhi / dx_top)) * (1 - (dy_xhi_yhi / dy_right))
+
+            psf_loc = weight_xlo_ylo * psf_xlo_ylo + \
+                      weight_xlo_yhi * psf_xlo_yhi + \
+                      weight_xhi_ylo * psf_xhi_ylo + \
+                      weight_xhi_yhi * psf_xhi_yhi
 
         else:
             # Nearest Neighbor:

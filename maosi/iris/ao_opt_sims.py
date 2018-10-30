@@ -8,68 +8,9 @@ from psf import PSF_grid
 import time
 from glob import glob
 import re
+from os import makedirs, path
+from scipy import ndimage
 import pdb
-
-# class GCstars(Scene):
-#     def __init__(self, label_file='/g/lu/data/gc/source_list/label.dat', instr=None):
-#         self.label_file = label_file
-#         
-#         self.stars = read_label_dat(label_file)
-# 
-#         # Start off our object with all the positions at time t_naught. This
-#         # isn't strictly observable, but it will do for now.
-#         x_now = self.stars['x']
-#         y_now = self.stars['y']
-#             
-#         f_now = 10**((self.stars['Kmag'] - instr.ZP_mag) / -2.5) * instr.ZP_flux
-#         mag_now = self.stars['Kmag']
-#         name_now = self.stars['name']
-# 
-#         super(self.__class__, self).__init__(x_now, y_now, f_now, mag_now,
-#                                              name_now)
-# 
-#         return
-# 
-#     def move_to_epoch(self, year):
-#         """
-#         year in decimals
-# 
-#         This will modify self.xpos, ypos using velocities from the initial
-#         label.dat file.
-#         """
-#         dt = time - self.stars['t0']
-#         self.xpos = self.stars['x'] + (dt * self.stars['vx'])
-#         self.ypos = self.stars['y'] + (dt * self.stars['vy'])
-# 
-#         return
-# 
-# 
-# class Grid(Scene):
-#     def __init__(self, n_grid, mag, noise=False, instr=None):
-#         
-#         # Prepare a grid of positions
-#         img_size = 10 # Approximate size of the image (")
-#         row = np.delete(np.arange(-(img_size / 2), (img_size / 2), (img_size / (n_grid + 1))), 0)
-#         grid = np.asarray([row] * n_grid)
-#         
-#         if noise:
-#             x_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
-#             y_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
-#         else:
-#             x_noise = np.zeros(len(grid.flatten()))
-#             y_noise = np.zeros(len(grid.flatten()))
-#         
-#         x_now = Table.Column(data=grid.flatten()+x_noise, name='x')
-#         y_now = Table.Column(data=grid.flatten('F')+y_noise, name='x')
-# 
-#         f_now = Table.Column(data=[10 ** ((mag - instr.ZP_mag) / -2.5) * instr.ZP_flux] * (n_grid ** 2), name='Kmag')
-#         mag_now = Table.Column(data=[mag] * (n_grid ** 2), name='Kmag')
-#         name_now = Table.Column(data=['dummy_star'] * (n_grid ** 2), name='name')
-# 
-#         super(self.__class__, self).__init__(x_now, y_now, f_now, mag_now,
-#                                              name_now)
-# 
-#         return
 
 
 class IRIS(Instrument):
@@ -82,6 +23,7 @@ class IRIS(Instrument):
         super(self.__class__, self).__init__(array_size, readnoise, dark_current, gain)
 
         self.scale = 0.004  # "/pix
+        self.offset = 0.6  # distance in " of the (1, 1) pixel from the optical axis
         self.tint = 30
         self.coadds = 1##########################
         self.fowler = 1####################3
@@ -145,74 +87,87 @@ class IRIS(Instrument):
 #         self.interpolator = [None for ii in self.psf_wave]
 # 
 #         return
-        
 
-    
-# def read_label_dat(label_file='/g/lu/data/gc/source_list/label.dat'):
-#     gcstars = Table.read(label_file, format='ascii')
-# 
-#     gcstars.rename_column('col1', 'name')
-#     gcstars.rename_column('col2', 'Kmag')
-#     gcstars.rename_column('col3', 'x')
-#     gcstars.rename_column('col4', 'y')
-#     gcstars.rename_column('col5', 'xerr')
-#     gcstars.rename_column('col6', 'yerr')
-#     gcstars.rename_column('col7', 'vx')
-#     gcstars.rename_column('col8', 'vy')
-#     gcstars.rename_column('col9', 'vxerr')
-#     gcstars.rename_column('col10', 'vyerr')
-#     gcstars.rename_column('col11', 't0')
-#     gcstars.rename_column('col12', 'use?')
-#     gcstars.rename_column('col13', 'r2d')
-# 
-#     return gcstars
+def convert_iris_psf_grid(psf_root, dir_out):
 
-def read_iris_psf_grid(psf_root):
-    print('Loading PSF from: ')
-    print(psf_root)
-
-    # Read in the PSF grid (single array of PSFs)
+    # Read in the PSFs
+    from scipy import ndimage
+    xs = []
+    ys = []
+    psfs = []
     imgs = glob(psf_root + '*.fits')
+    img = []
+
     for img in imgs:
         x_str = re.search('_x(.*)_y', img)
-        x_str.group(1)
-        psf = pyfits.getdata(img)
+        xs.append(float(x_str.group(1)))
+        y_str = re.search('_y(.*)_', img)
+        ys.append(float(y_str.group(1)))
+        psfs.append(pyfits.getdata(img))
 
-    # Read in the grid positions.
-    psf_grid_pos = pyfits.getdata(psf_grid_pos_file)
+    # Arrange the PSFs
+    x_unique, x_unique_idx = np.unique(xs, return_index=True)
+    y_unique, y_unique_idx = np.unique(ys, return_index=True)
+    xs_order = []
+    ys_order = []
+    psfs_order = []
 
-    # Positify and normalize and the PSFs.
-    for ii in range(psfs.shape[0]):
-        # Repair them because there shouldn't be pixels with flux < 0.
-        # To preserve the noise properties, just clip the values to be zero.
-        psfs[ii][psfs[ii] < 0] = 0
+    for idx_y in y_unique_idx:
 
-        psfs[ii] /= psfs[ii].sum()
+        for idx_x in x_unique_idx:
+            xs_order.append(xs[idx_x])
+            ys_order.append(ys[idx_y])
+            idx_psf = np.where((np.array(xs) == xs[idx_x]) &
+                               (np.array(ys) == ys[idx_y]))[0][0]
+            psfs_order.append(psfs[idx_psf])
 
-    return psfs, psf_grid_pos
-# 
-# def test_nirc2_img(psf_grid_raw, psf_grid_pos, outname='tmp.fits'):
-#     time_start = time.time()
-#     
-#     nirc2 = NIRC2()
-#     
-#     print('Reading GC Label.dat: {0} sec'.format(time.time() - time_start))
-#     stars = GCstars()
-# 
-#     psfgrid = PSF_grid_NIRC2_Kp(psf_grid_raw, psf_grid_pos)
-# 
-#     print('Making Image: {0} sec'.format(time.time() - time_start))
-#     wave_index = 0
-#     background = 3.0 # elect_nicerons /sec
-#     obs = Observation(nirc2, stars, psfgrid,
-#                       wave_index, background,
-#                       origin=np.array([631, 603]))
-#     
-#     print('Saving Image: {0} sec'.format(time.time() - time_start))
-# 
-#     obs.save_to_fits(outname, clobber=True)
-#     
-#     return
-
-
+    # Convert the PSF positions
+    iris_tmp = IRIS()
+    xs_order = np.array(xs_order)
+    ys_order = np.array(ys_order)
+    xs_order -= iris_tmp.offset
+    ys_order -= iris_tmp.offset
+    xs_order /= iris_tmp.scale
+    ys_order /= iris_tmp.scale
+    pos_order = np.transpose(np.vstack((xs_order, ys_order)))
     
+    # Convert the PSF images
+    hdr = pyfits.getheader(img)
+    comments = ''
+
+    for i in range(len(hdr['comment'])):
+        comment = hdr['comment'][i]
+        comments += comment[2:]
+
+    ps = float(re.search('PSF Sampling:(.*)arcsec', comments).group(1))
+
+    # aaa = np.max(psfs_order[0])
+    # aaa1 = np.sum(psfs_order[0])
+    
+    for i in range(len(psfs_order)):
+        psfs_order[i] = ndimage.zoom(psfs_order[i], (ps / iris_tmp.scale),
+                                     order=1) # Bilinear interpolation
+        psfs_order[i] /= np.sum(psfs_order[i]) # Normalize to 1
+
+    # bbb = np.max(psfs_order[0])
+    # bbb1 = np.sum(psfs_order[0])
+
+    # from matplotlib import pyplot
+    # from matplotlib.colors import LogNorm
+    # pyplot.figure(figsize=(6, 6))
+    # pyplot.imshow(psfs_order[0],norm=LogNorm())
+
+    # pyplot.figure(figsize=(6, 6))
+    # pyplot.imshow(psfs_order[0], norm=LogNorm())
+
+    # img_orig = pyfits.open(path.join(dir_out, 'old_psf_grid.fits'))[0].data
+    # np.sum(img_orig[0])
+
+    # Save the PSFs
+    if not path.exists(dir_out):
+        makedirs(dir_out)
+
+    psfs_hdul = pyfits.HDUList([pyfits.PrimaryHDU(psfs_order)])
+    psfs_hdul.writeto(path.join(dir_out, 'psf_grid.fits'), overwrite=True)
+    pos_hdul = pyfits.HDUList([pyfits.PrimaryHDU(pos_order)])
+    pos_hdul.writeto(path.join(dir_out, 'grid_pos.fits'), overwrite=True)
