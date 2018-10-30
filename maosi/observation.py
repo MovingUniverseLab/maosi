@@ -114,7 +114,8 @@ class Observation(object):
         img_noise = np.random.poisson(img, img.shape)
         
         # Add readnoise. We get readnoise for every coadd. 
-        readnoise_all_reads = np.random.normal(loc=0, scale=readnoise, size=img.shape.append(instrument.coadds))
+        readnoise_all_reads = np.random.normal(loc=0, scale=readnoise,
+                                               size=img.shape.append(instrument.coadds))
         img_noise += readnoise_all_reads.sum(axis=2)
 
         # Save the image to the object
@@ -134,28 +135,16 @@ class Observation(object):
         # sat_in_DN = instrument.saturation * instrument.coadds / instrument.gain
         # SAVE TO *.max FILE. inside save_to_fits().
         
-        # Save the image to the object
-        self.img = img + img_noise
-
-        # Create a table containing the information about the stars planted.
-        stars_x = x[keep_idx]
-        stars_y = y[keep_idx]
-        stars_counts = scene.flux[keep_idx] * flux_to_counts
-        stars_mags = scene.mag[keep_idx]
-        stars_names = scene.name[keep_idx]
-        stars = Table((stars_names, stars_x, stars_y, stars_counts, stars_mags),
-                        names=("names", "xpix", "ypix", "counts", "mags"),
-                        meta={'name':'stars table'})
-        self.stars = stars
-        
         return
 
     def save_to_fits(self, fitsfile, header=None, clobber=False):
         pyfits.writeto(fitsfile, self.img, header=header, clobber=clobber)
 
-        self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'), format='fits', overwrite=clobber)
+        self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'),
+                             format='fits', overwrite=clobber)
 
-        self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'), format='fits', overwrite=clobber)
+        self.stars.write(fitsfile.replace('.fits', '_stars_table.fits'),
+                             format='fits', overwrite=clobber)
 
         return
 

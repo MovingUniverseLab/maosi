@@ -41,8 +41,8 @@ class PSF_grid(object):
         # Calculate the positions of all these PSFs. We assume that the
         # outermost PSFs are at the corners such that all observed stars
         # are internal to these corners.
-        x_pos = np.mgrid[0:grid_shape[1]]
-        y_pos = np.mgrid[0:grid_shape[0]]
+        x_pos = np.array(np.mgrid[0:grid_shape[1]], dtype=float)
+        y_pos = np.array(np.mgrid[0:grid_shape[0]], dtype=float)
 
         # Need to multiply by some of the array size properties.
         # Note that this assumes a pixel scale.
@@ -111,6 +111,7 @@ class PSF_grid(object):
             psf_loc = self.psf[wave_idx, yidx, xidx]
 
         elif method == 'bilinear':
+            pdb.set_trace()
             xidx_lo = np.where(psf_x <= x)[0][-1]
             yidx_lo = np.where(psf_y <= y)[0][-1]
             xidx_hi = xidx_lo + 1

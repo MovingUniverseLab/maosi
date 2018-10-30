@@ -1,10 +1,10 @@
-import psf
-import scene
-import instrument
-import observation
+from maosi import psf
+from maosi import scene
+from maosi import instrument
+from maosi import observation
 import numpy as np
 import pylab as py
-import pyfits
+from astropy.io import fits
 import time
 
 Nstars = 100
@@ -19,7 +19,7 @@ def prepare_test_imaka(rootdir='/Users/jlu/work/imaka/sims/psfs/'):
 
     print('Loading PSF grid from: ')
     print(psf_file)
-    psf_grid_raw = pyfits.getdata(psf_file)
+    psf_grid_raw = fits.getdata(psf_file)
 
     return psf_grid_raw
 
@@ -39,12 +39,12 @@ def test_imaka(psf_grid_raw):
     print('Saving Image: {0} sec'.format(time.time() - time_start))
     obs.save_to_fits('tmp.fits', clobber=True)
 
-    # print 'Displaying Image'
-    # py.clf()
-    # py.imshow(obs.img, cmap='gist_heat')
+    print( 'Displaying Image')
+    py.clf()
+    py.imshow(obs.img, cmap='gist_heat')
 
-    # # Zoom in
-    # py.axis([2000, 3000, 2000, 3000])
+    # Zoom in
+    py.axis([2000, 3000, 2000, 3000])
 
 
     # Print out some runtime information.    
