@@ -51,8 +51,10 @@ class Grid(Scene):
         grid = np.asarray([row] * n_grid)
         
         if noise:
-            x_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
-            y_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
+            # x_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
+            # y_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
+            x_noise = np.random.uniform(low=-0.4, high=0.4, size=len(grid.flatten()))
+            y_noise = np.random.uniform(low=-0.4, high=0.4, size=len(grid.flatten()))
         else:
             x_noise = np.zeros(len(grid.flatten()))
             y_noise = np.zeros(len(grid.flatten()))
@@ -110,12 +112,7 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
         if necessary.
         """
         psf_scale = [0.009954]  # arcseconds per pixel
-
-        # Determine the shape of the grid.
-        grid_shape_tmp = np.sqrt(psf.shape[0])
-        grid_shape = np.array((grid_shape_tmp, grid_shape_tmp))
-        self.grid_shape = grid_shape
-            
+        
         # Fix wave_array to be a float
         wave_array=[2120]        
         wave_shape = 1
@@ -125,11 +122,10 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
 
 
         # Reshape the array to get the X and Y positions
-        psf = psf.reshape((wave_shape, int(grid_shape[0]), int(grid_shape[1]),
+        psf = psf.reshape((wave_shape, psf.shape[0],
                            psf.shape[1], psf.shape[2]))
 
-        grid = grid_points.reshape((wave_shape, int(grid_shape[0]),
-                                    int(grid_shape[1]), grid_points.shape[1]))
+        grid = grid_points.reshape((wave_shape, grid_points.shape[0], grid_points.shape[1]))
         #grid = np.swapaxes(grid, 1, 2)
 
         # Calculate the positions of all these PSFs. We assume that the

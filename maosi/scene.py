@@ -5,7 +5,7 @@ class Scene(object):
     point sources with specifed positions in arcseconds and fluxes.
     """
 
-    def __init__(self, stars_x, stars_y, stars_f, stars_mag, stars_name):
+    def __init__(self, stars_x, stars_y, stars_f):
         """
         X Position (in arcsec)
         Y Position (in arcsec)
@@ -19,8 +19,6 @@ class Scene(object):
         self.xpos = stars_x
         self.ypos = stars_y
         self.flux = stars_f
-        self.mag = stars_mag
-        self.name = stars_name
 
         return
 
