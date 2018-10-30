@@ -71,6 +71,33 @@ class Grid(Scene):
 
         return
 
+class IrregularGrid(Scene):
+    def __init__(self, n_grid, mag, instr):
+        
+        # Prepare a grid of positions
+        img_size = 10 # Approximate size of the image (")
+        row = np.delete(np.arange(-(img_size / 2), (img_size / 2), (img_size / (n_grid + 1))), 0)
+        grid = np.asarray([row] * n_grid)
+
+        avg_sep = img_size / n_grid
+        rand_sep = avg_sep / 3.0
+
+        np.random.seed(1001)
+        
+        x_tmp = np.random.uniform(low=-rand_sep, high=rand_sep, size=len(grid.flatten()))
+        y_tmp = np.random.uniform(low=-rand_sep, high=rand_sep, size=len(grid.flatten()))
+        
+        x_now = Table.Column(data=grid.flatten() + x_tmp, name='x')
+        y_now = Table.Column(data=grid.flatten('F') + y_tmp, name='y')
+        f_now = Table.Column(data=[10 ** ((mag - instr.ZP_mag) / -2.5) * instr.ZP_flux] * (n_grid ** 2), name='Kmag')
+        mag_now = Table.Column(data=[mag] * (n_grid ** 2), name='Kmag')
+        name_now = Table.Column(data=['dummy_star'] * (n_grid ** 2), name='name')
+
+        super(self.__class__, self).__init__(x_now, y_now, f_now, mag_now,
+                                             name_now)
+
+        return
+    
 class NIRC2(Instrument):
     def __init__(self):
         array_size = np.array((1024, 1024))
