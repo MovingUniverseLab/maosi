@@ -35,8 +35,8 @@ class Observation(object):
         # i and j are the coordinates into the PSF array. Make it 0 at the center.
         # i goes along the x direction (2nd index in image array)
         # j goes along the y direction (1st index in image array)
-        psf_j = np.arange(psf_grid.psf.shape[2]) - (psf_grid.psf.shape[2] / 2)
-        psf_i = np.arange(psf_grid.psf.shape[3]) - (psf_grid.psf.shape[3] / 2)
+        psf_j = np.arange(psf_grid.psf.shape[-2]) - (psf_grid.psf.shape[-2] / 2)
+        psf_i = np.arange(psf_grid.psf.shape[-1]) - (psf_grid.psf.shape[-1] / 2)
 
         psf_j_scaled = psf_j * (psf_grid.psf_scale[wave] / instrument.scale)
         psf_i_scaled = psf_i * (psf_grid.psf_scale[wave] / instrument.scale)
@@ -113,9 +113,10 @@ class Observation(object):
         # Add Poisson noise from dark, sky, background, stars.
         img_noise = np.random.poisson(img, img.shape)
         
-        # Add readnoise. We get readnoise for every coadd. 
-        readnoise_all_reads = np.random.normal(loc=0, scale=readnoise, size=img.shape.append(instrument.coadds))
-        img_noise += readnoise_all_reads.sum(axis=2)
+        # Add readnoise. We get readnoise for every coadd.
+        img_stack_shape = np.append(img.shape, instrument.coadds)
+        readnoise_all_reads = np.random.normal(loc=0, scale=readnoise, size=img_stack_shape)
+        img_noise += readnoise_all_reads.sum(axis=2).astype(img_noise.dtype)
 
         # Save the image to the object
         self.img = img + img_noise
@@ -129,7 +130,7 @@ class Observation(object):
                         meta={'name':'stars table'})
         self.stars = stars
 
-        # TO DO: Add support for saturation and creating a *.max file with the
+        # TO DO: Add support for saturation, and creating a *.max file with the
         # saturation limit of this image included.
         # sat_in_DN = instrument.saturation * instrument.coadds / instrument.gain
         # SAVE TO *.max FILE. inside save_to_fits().

@@ -1,10 +1,10 @@
 import numpy as np
 from astropy.io import fits as pyfits
 from astropy.table import Table
-from scene import Scene
-from instrument import Instrument
-from observation import Observation
-from psf import PSF_grid
+from maosi.scene import Scene
+from maosi.instrument import Instrument
+from maosi.observation import Observation
+from maosi.psf import PSF_grid
 import time
 import pdb
 
@@ -111,6 +111,11 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
         """
         psf_scale = [0.009954]  # arcseconds per pixel
 
+        # Determine the shape of the grid.
+        grid_shape_tmp = np.sqrt(psf.shape[0])
+        grid_shape = np.array((grid_shape_tmp, grid_shape_tmp))
+        self.grid_shape = grid_shape
+            
         # Fix wave_array to be a float
         wave_array=[2120]        
         wave_shape = 1
@@ -130,8 +135,8 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
         # Calculate the positions of all these PSFs. We assume that the
         # outermost PSFs are at the corners such that all observed stars
         # are internal to these corners. These are 1D arrays.
-        x_pos = grid[0, :, 0]
-        y_pos = grid[0, :, 1]
+        x_pos = grid[0, :, :, 0]
+        y_pos = grid[0, :, :, 1]
 
         self.psf = psf
         self.psf_x = x_pos   # 2D array

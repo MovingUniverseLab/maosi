@@ -105,8 +105,9 @@ class PSF_grid(object):
         
         # Find the PSF
         if method == 'neighbor':
-            xidx = np.argmin(abs(psf_x - x))
-            yidx = np.argmin(abs(psf_y - y))
+            dr = np.hypot(psf_x - x, psf_y - y)
+            ridx = np.argmin(dr)
+            yidx, xidx = np.unravel_index(ridx, psf_x.shape)
 
             psf_loc = self.psf[wave_idx, yidx, xidx]
 
