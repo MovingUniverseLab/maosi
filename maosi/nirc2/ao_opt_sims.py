@@ -131,12 +131,12 @@ class PSF_grid_NIRC2_Kp(PSF_grid):
         # Calculate the positions of all these PSFs. We assume that the
         # outermost PSFs are at the corners such that all observed stars
         # are internal to these corners. These are 1D arrays.
-        x_pos = grid[0, :, :, 0]
-        y_pos = grid[0, :, :, 1]
+        x_pos = grid[0, :, 0]
+        y_pos = grid[0, :, 1]
 
         self.psf = psf
-        self.psf_x = x_pos   # 2D array
-        self.psf_y = y_pos   # 2D array
+        self.psf_x = x_pos   # 1D array
+        self.psf_y = y_pos   # 1D array
         self.psf_wave = wave_array
         self.wave_shape = wave_shape
         self.psf_scale = psf_scale

@@ -123,11 +123,13 @@ class Observation(object):
         self.img = img + img_noise
 
         # Create a table containing the information about the stars planted.
+        stars_name = scene.name[keep_idx]
         stars_x = x[keep_idx]
         stars_y = y[keep_idx]
         stars_counts = scene.flux[keep_idx] * flux_to_counts
-        stars = Table((stars_x, stars_y, stars_counts),
-                        names=("xpix", "ypix", "counts"),
+        stars_mag = scene.mag[keep_idx]
+        stars = Table((stars_name, stars_x, stars_y, stars_counts, stars_mag),
+                        names=("names", "xpix", "ypix", "counts", "mags"),
                         meta={'name':'stars table'})
         self.stars = stars
 
