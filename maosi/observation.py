@@ -80,7 +80,7 @@ class Observation(object):
             # Make the interpolation object.
             # Can't keep this because we have a spatially variable PSF.
             psf_interp = RectBivariateSpline(psf_j_old, psf_i_old, psf,
-                                             kx=2, ky=3)
+                                             kx=3, ky=3)
 
             # New grid of points to evaluate at for this star.
             xlo = int(psf_i_old[0])
