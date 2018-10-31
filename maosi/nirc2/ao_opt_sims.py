@@ -51,10 +51,8 @@ class Grid(Scene):
         grid = np.asarray([row] * n_grid)
         
         if noise:
-            # x_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
-            # y_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
-            x_noise = np.random.uniform(low=-0.4, high=0.4, size=len(grid.flatten()))
-            y_noise = np.random.uniform(low=-0.4, high=0.4, size=len(grid.flatten()))
+            x_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
+            y_noise = np.random.uniform(low=-noise/2, high=noise/2, size=len(grid.flatten()))
         else:
             x_noise = np.zeros(len(grid.flatten()))
             y_noise = np.zeros(len(grid.flatten()))

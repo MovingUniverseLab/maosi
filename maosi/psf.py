@@ -128,9 +128,9 @@ class PSF_grid(object):
 
             # Select the image of the closest PSF in each quadrant
             psf_xlo_ylo = self.psf[wave_idx, xlo_ylo[idx_xlo_ylo]]
-            psf_xlo_yhi = self.psf[wave_idx, idx_xlo_yhi]
-            psf_xhi_ylo = self.psf[wave_idx, idx_xhi_ylo]
-            psf_xhi_yhi = self.psf[wave_idx, idx_xhi_yhi]
+            psf_xlo_yhi = self.psf[wave_idx, xlo_yhi[idx_xlo_yhi]]
+            psf_xhi_ylo = self.psf[wave_idx, xhi_ylo[idx_xhi_ylo]]
+            psf_xhi_yhi = self.psf[wave_idx, xhi_yhi[idx_xhi_yhi]]
 
             # Select the x distance of the closest PSF in each quadrant
             dx_xlo_ylo = x - psf_x[xlo_ylo[idx_xlo_ylo]]
