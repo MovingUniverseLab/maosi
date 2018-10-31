@@ -73,11 +73,14 @@ class Observation(object):
             # Coordinates of the PSF's pixels at this star's position
             psf_i_old = psf_i_scaled + x[ii]
             psf_j_old = psf_j_scaled + y[ii]
+            # print("No more sub-pixel interpolation")
+            # psf_i_old = psf_i_scaled + np.rint(x[ii])
+            # psf_j_old = psf_j_scaled + np.rint(y[ii])
 
             # Make the interpolation object.
             # Can't keep this because we have a spatially variable PSF.
             psf_interp = RectBivariateSpline(psf_j_old, psf_i_old, psf,
-                                             kx=1, ky=1)
+                                             kx=2, ky=3)
 
             # New grid of points to evaluate at for this star.
             xlo = int(psf_i_old[0])
@@ -99,6 +102,7 @@ class Observation(object):
             psf_i_new = np.arange(xlo, xhi)
             psf_j_new = np.arange(ylo, yhi)
             psf_star = psf_interp(psf_j_new, psf_i_new, grid=True)
+            pdf_star = psf_interp
 
             # Add the PSF to the image.
             img[ylo:yhi, xlo:xhi] += psf_star
