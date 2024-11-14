@@ -61,6 +61,8 @@ class SPISEAClusterScene(Scene):
         self.cluster_mass = cluster_mass
 
         self.make_spisea_cluster()
+        gdx = (self.cluster.star_systems['isWR'] == False)
+        self.cluster.star_systems = self.cluster.star_systems[gdx]
         self.generate_star_positions_arcsec(cluster_fwhm)
 
         # Convert magnitudes to fluxes.

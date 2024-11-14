@@ -56,7 +56,7 @@ class Observation(object):
         # Add the point sources
         print('Observation: Adding stars one by one...\n')
         for ii in range(len(x)):
-            if ii % 1 == 0:
+            if ii % 500 == 0:
                 print(f"Making star {ii}")
                 
             # Fetch the appropriate interpolated PSF and scale by flux.
@@ -108,19 +108,19 @@ class Observation(object):
 
             # Remove sections that will be off the edge of the image
             if xlo < 0:
-                print("xlo less than 0. Clipping.")
+                # print("xlo less than 0. Clipping.")
                 xlo = 0
             if xhi > img.shape[1]:
-                print(f"xhi greater than {img.shape[1]}. Clipping.")
+                # print(f"xhi greater than {img.shape[1]}. Clipping.")
                 xhi = img.shape[1]
             if ylo < 0:
-                print("ylo less than 0. Clipping.")
+                # print("ylo less than 0. Clipping.")
                 ylo = 0
             if yhi > img.shape[0]:
-                print(f"yhi greater than {img.shape[0]}. Clipping.")
+                # print(f"yhi greater than {img.shape[0]}. Clipping.")
                 yhi = img.shape[0]
             if (xhi < 0) or (yhi < 0) or (xlo > img.shape[0]) or (ylo > img.shape[1]):
-                print(f"Skipping star")
+                # print(f"Skipping star")
                 continue
                 
             # Interpolate the PSF onto the new grid.

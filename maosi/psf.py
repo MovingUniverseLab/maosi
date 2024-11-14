@@ -299,7 +299,7 @@ class MAOS_PSF_grid_from_line(PSF_grid):
                     wavelength[ww] = header['wvl']*1E9
                     pixel_scale[ww] = header['dp']
                     
-                    psfs[ww, i, :, :] = data
+                    psfs[ww, i, :, :] = data / data.sum()
                     pos[i, 0] = header['theta'].real
                     pos[i, 1] = header['theta'].imag
 
@@ -364,9 +364,165 @@ class MAOS_PSF_grid_from_line(PSF_grid):
         self.fov = self.psf.shape[3]
 
         return
-        
-        
 
 
-        
+class MAOS_PSF_grid_from_quadrant(PSF_grid):
+    from paarti import psfs as paarti_psfs
+
+    def __init__(self, directory, seed, wave_idx=None):
+        """
+        Load up a MAOS run where we have run a single line of PSFs,
+        usually along the X direction. Turn these into a 2D grid
+        through reflection and interpolation.
+
+        directory : str
+            Name of directory where MAOS was run.
+
+        seed : int
+            Seed of MAOS run.
+
+        wave_idx : list or None
+            List of indices of wavelengths to keep.
+        """
+        filelist = os.listdir(directory)
+        fits_files = fnmatch.filter(filelist, f'evlpsfcl_{seed}_x*_y*.fits')
+
+        def find_substring_index(lst, sub):
+            for i, s in enumerate(lst):
+                if sub in s:
+                    return
+            return -1  # Return -1 if the substring is not found
+
+
+        def get_xy(fits_file):
+            foo_x = fits_file.rfind('_x')
+            foo_y = fits_file.rfind('_y')
+            foo_ex = fits_file.rfind('.fits')
+            x = int(fits_file[foo_x+3:foo_y])
+            y = int(fits_file[foo_y+3:foo_ex])
+
+            return (x, y)
+
+        # Loop through the FITS files and get the x and y positions.
+        # Assume this is a grid with the same values in x and y.
+        posx = []
+        posy = []
+        for ff in fits_files:
+            x, y = get_xy(ff)
+            posx.append(x)
+            posy.append(y)
+            print(f'posx = {posx[-1]}')
+            print(f'posy = {posy[-1]}')
+
+        posx_u = np.unique(posx)
+        posy_u = np.unique(posy)
+        n_pos = len(fits_files)
+        assert len(posx_u) * len(posy_u) == n_pos
+
+        # Loop through the files and upload the PSFs.
+        first_file = True
+
+        for i, FITSfilename in enumerate(fits_files):
+            with fits.open(directory + FITSfilename) as psfFITS:
+                # Use the first file to define some arrays.
+                if first_file:
+                    if wave_idx == None:
+                        wave_idx = np.arange(len(psfFITS))
+
+                    n_wvls = len(wave_idx)
+
+                    wavelength = np.empty(n_wvls, dtype=float)
+                    pixel_scale = np.empty(n_wvls, dtype=float)
+
+                    psf_x_size = psfFITS[0].data.shape[1]
+                    psf_y_size = psfFITS[0].data.shape[0]
+
+                    psfs = np.empty([n_wvls, len(posx_u), len(posy_u), psf_y_size, psf_x_size])
+                    pos = np.empty([len(posx_u), len(posy_u), 2])
+                    psf_x = np.empty([len(posx_u), len(posy_u)])
+                    psf_y = np.empty([len(posx_u), len(posy_u)])
+
+                    first_file = False
+
+                psf_ix = np.where(posx_u == psf_x)[0]
+                psf_iy = np.where(posy_u == psf_y)[0]
+
+                # Loop through the different wavelengths and load them up.
+                for ww in wave_idx:
+                    header = psfFITS[ww].header
+                    data = psfFITS[ww].data
+
+                    wavelength[ww] = header['wvl'] * 1E9
+                    pixel_scale[ww] = header['dp']
+
+                    psfs[ww, psf_ix, psf_iy, :, :] = data / data.sum()
+                    pos[psf_ix, psf_iy, 0] = header['theta'].real
+                    pos[psf_ix, psf_iy, 1] = header['theta'].imag
+
+        # Now artificially make a grid from a line along X direction.
+        x_old = pos[:, :, 0]
+        y_old = pos[:, :, 1]
+        psf_old = psfs
+
+        # Reflect across Y (to get negative x values)
+        x_new1 = np.append(pos[1:, :, 0] * -1, x_old, axis=0)
+        y_new1 = np.append(pos[1:, :, 1],      y_old, axis=0)
+        psf_new1 = np.append(np.flip(psfs[:, 1:, :, :, :], axis=3), psf_old, axis=1)
+
+        # Rotate to get Y (but drop 0 entry so no duplication)
+        x_new2 = np.append(pos[:, 1:, 1], x_new1, axis=0)
+        y_new2 = np.append(pos[:, 1:, 0], y_new1, axis=0)
+        psf_new2 = np.append(np.flip(psfs[:, 1:, :, :], axis=2), psf_new1, axis=1)
+
+        pos = np.array([x_new2, y_new2])
+        psfs = psf_new
+
+        # ##########
+        # # Now interpolate between the PSFs onto a regular grid.
+        # ##########
+        # # Here is the new grid coordinates. Don't bother extrapolating.
+        # grid_max = int(np.max(pos) / np.sqrt(2.0))  # scale down by sqrt(2)
+        # idx_grid_good = np.where(pos[:, 0] < grid_max)[0]  # find positions within this range
+        # grid_max = pos[idx_grid_good, 0].max()  # find the maximum position allowed.
+        # dgrid = np.abs(pos[1, 1] - pos[0, 1])
+        #
+        # nx_grid_1d = np.arange(-grid_max, grid_max + 1, dgrid)
+        # y_grid_1d = np.arange(-grid_max, grid_max + 1, dgrid)
+        # x_grid_2d, y_grid_2d = np.meshgrid(x_grid_1d, y_grid_1d)
+        #
+        # # Make a new PSF grid with the right shape.
+        # #  shape = [N_wvls, N_pos_in_x, N_pos_in_y, PSF_shape_x, PSF_shape_y]
+        # psf_grid_new = np.zeros([n_wvls, x_grid_2d.shape[0], x_grid_2d.shape[1],
+        #                          psfs.shape[2], psfs.shape[3]])
+        #
+        # from scipy.interpolate import LinearNDInterpolator
+        # for ww in range(len(wavelength)):
+        #     interp = LinearNDInterpolator(pos, psfs[ww])
+        #
+        #     psf_grid_new[ww] = interp(x_grid_2d, y_grid_2d)
+        #
+
+        # Now save all our variables.
+        self.psf = psfs
+        self.psf_x_2d = pos[:, :, 0]
+        self.psf_y_2d = pos[:, :, 1]
+        self.psf_x = np.sort(np.unique(self.psf_x_2d))
+        self.psf_y = np.sort(np.unique(self.psf_y_2d))
+
+        self.psf_wave = wavelength
+        self.wave_shape = len(wavelength)
+        self.grid_shape = np.array(self.psf.shape[1:3])
+        self.psf_scale = pixel_scale
+        self.fov = self.psf.shape[3]
+
+        return
+
+
+
+
+
+
+
+
+
 
