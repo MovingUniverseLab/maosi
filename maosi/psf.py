@@ -247,7 +247,6 @@ class PSF_grid(object):
         return
 
 class MAOS_PSF_grid_from_line(PSF_grid):
-    from paarti import psfs as paarti_psfs
 
     def __init__(self, directory, seed, wave_idx=None):
         """
@@ -277,8 +276,10 @@ class MAOS_PSF_grid_from_line(PSF_grid):
                 if first_file:
                     if wave_idx == None:
                         wave_idx = np.arange(len(psfFITS))
-
-                    n_wvls = len(wave_idx)
+                        n_wvls = len(wave_idx)
+                    else:
+                        wave_idx = 0
+                        n_wvls = 1
                     
                     wavelength = np.empty(n_wvls, dtype=float)
                     pixel_scale = np.empty(n_wvls, dtype=float)
@@ -367,9 +368,8 @@ class MAOS_PSF_grid_from_line(PSF_grid):
 
 
 class MAOS_PSF_grid_from_quadrant(PSF_grid):
-    from paarti import psfs as paarti_psfs
 
-    def __init__(self, directory, seed, wave_idx=None):
+    def __init__(self, directory, seed, wave_idx=None, blur_kernel=2):
         """
         Load up a MAOS run where we have run a single line of PSFs,
         usually along the X direction. Turn these into a 2D grid
@@ -398,8 +398,8 @@ class MAOS_PSF_grid_from_quadrant(PSF_grid):
             foo_x = fits_file.rfind('_x')
             foo_y = fits_file.rfind('_y')
             foo_ex = fits_file.rfind('.fits')
-            x = int(fits_file[foo_x+3:foo_y])
-            y = int(fits_file[foo_y+3:foo_ex])
+            x = int(fits_file[foo_x+2:foo_y])
+            y = int(fits_file[foo_y+2:foo_ex])
 
             return (x, y)
 
@@ -411,8 +411,6 @@ class MAOS_PSF_grid_from_quadrant(PSF_grid):
             x, y = get_xy(ff)
             posx.append(x)
             posy.append(y)
-            print(f'posx = {posx[-1]}')
-            print(f'posy = {posy[-1]}')
 
         posx_u = np.unique(posx)
         posy_u = np.unique(posy)
@@ -437,15 +435,14 @@ class MAOS_PSF_grid_from_quadrant(PSF_grid):
                     psf_x_size = psfFITS[0].data.shape[1]
                     psf_y_size = psfFITS[0].data.shape[0]
 
-                    psfs = np.empty([n_wvls, len(posx_u), len(posy_u), psf_y_size, psf_x_size])
-                    pos = np.empty([len(posx_u), len(posy_u), 2])
-                    psf_x = np.empty([len(posx_u), len(posy_u)])
-                    psf_y = np.empty([len(posx_u), len(posy_u)])
+                    psfs = np.empty([n_wvls, len(posy_u), len(posx_u), psf_y_size, psf_x_size])
+                    pos = np.empty([len(posy_u), len(posx_u), 2])
 
                     first_file = False
 
-                psf_ix = np.where(posx_u == psf_x)[0]
-                psf_iy = np.where(posy_u == psf_y)[0]
+                x, y = get_xy(FITSfilename)
+                psf_ix = np.where(posx_u == x)[0][0]
+                psf_iy = np.where(posy_u == y)[0][0]
 
                 # Loop through the different wavelengths and load them up.
                 for ww in wave_idx:
@@ -455,38 +452,41 @@ class MAOS_PSF_grid_from_quadrant(PSF_grid):
                     wavelength[ww] = header['wvl'] * 1E9
                     pixel_scale[ww] = header['dp']
 
-                    psfs[ww, psf_ix, psf_iy, :, :] = data / data.sum()
-                    pos[psf_ix, psf_iy, 0] = header['theta'].real
-                    pos[psf_ix, psf_iy, 1] = header['theta'].imag
+                    psfs[ww, psf_iy, psf_ix, :, :] = data / data.sum()
 
-        # Now artificially make a grid from a line along X direction.
+                    if ww == 0:
+                        pos[psf_iy, psf_ix, 0] = x#header['theta'].real
+                        pos[psf_iy, psf_ix, 1] = y#header['theta'].imag
+
+        # Now artificially make a grid with full coverage from
+        # a grid that is currently only at the top right quadrant.
         x_old = pos[:, :, 0]
         y_old = pos[:, :, 1]
         psf_old = psfs
 
         # Reflect across Y (to get negative x values)
-        x_new1 = np.append(pos[1:, :, 0] * -1, x_old, axis=0)
-        y_new1 = np.append(pos[1:, :, 1],      y_old, axis=0)
-        psf_new1 = np.append(np.flip(psfs[:, 1:, :, :, :], axis=3), psf_old, axis=1)
+        x_new1 = np.append(np.flip(pos[:, 1:, 0] * -1, axis=1), x_old, axis=1)
+        y_new1 = np.append(pos[:, 1:, 1], y_old, axis=1)
+        psf_new1 = np.append(np.flip(psfs[:, :, 1:, :, :], axis=(2, 4)), psf_old, axis=2)
 
-        # Rotate to get Y (but drop 0 entry so no duplication)
-        x_new2 = np.append(pos[:, 1:, 1], x_new1, axis=0)
-        y_new2 = np.append(pos[:, 1:, 0], y_new1, axis=0)
-        psf_new2 = np.append(np.flip(psfs[:, 1:, :, :], axis=2), psf_new1, axis=1)
+        # Reflect across X (to get negative y values)
+        x_new2 = np.append(x_new1[1:, :], x_new1, axis=0)
+        y_new2 = np.append(np.flip(y_new1[1:, :] * -1, axis=0), y_new1, axis=0)
+        psf_new2 = np.append(np.flip(psf_new1[:, 1:, :, :, :], axis=(1, 3)), psf_new1, axis=1)
 
-        pos = np.array([x_new2, y_new2])
-        psfs = psf_new
+        pos = np.array([x_new2, y_new2]).T
+        psfs = psf_new2
+
 
         # ##########
         # # Now interpolate between the PSFs onto a regular grid.
         # ##########
-        # # Here is the new grid coordinates. Don't bother extrapolating.
-        # grid_max = int(np.max(pos) / np.sqrt(2.0))  # scale down by sqrt(2)
-        # idx_grid_good = np.where(pos[:, 0] < grid_max)[0]  # find positions within this range
-        # grid_max = pos[idx_grid_good, 0].max()  # find the maximum position allowed.
-        # dgrid = np.abs(pos[1, 1] - pos[0, 1])
+        # # Here is the new grid coordinates.
+        # grid_max = np.max(pos)  # scale down by sqrt(2)
+        # dgrid = np.diff(pos[:, :, 1])
+        # dgrid = np.min(dgrid[dgrid != 0])
         #
-        # nx_grid_1d = np.arange(-grid_max, grid_max + 1, dgrid)
+        # x_grid_1d = np.arange(-grid_max, grid_max + 1, dgrid)
         # y_grid_1d = np.arange(-grid_max, grid_max + 1, dgrid)
         # x_grid_2d, y_grid_2d = np.meshgrid(x_grid_1d, y_grid_1d)
         #
@@ -500,7 +500,12 @@ class MAOS_PSF_grid_from_quadrant(PSF_grid):
         #     interp = LinearNDInterpolator(pos, psfs[ww])
         #
         #     psf_grid_new[ww] = interp(x_grid_2d, y_grid_2d)
-        #
+
+        # if blur_kernel is not None:
+        #     for ww in range(psfs.shape[0]):
+        #         for yy in range(psfs.shape[1]):
+        #             for xx in range(psfs.shape[2]):
+        #     image_see = ndimage.gaussian_filter(kapa_obs.img, sigma=width_see)
 
         # Now save all our variables.
         self.psf = psfs
